@@ -1,0 +1,182 @@
+# Go
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+web-service-gin-aws
+web-service-gin
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool
+*.out
+
+# Go workspace file
+go.work
+
+# Dependency directories
+vendor/
+
+# Go build cache
+.cache/
+
+# ====================
+# Python
+# ====================
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv/
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# pyenv
+.python-version
+
+# ====================
+# IDE & Editors
+# ====================
+# VS Code
+.vscode/
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+
+# JetBrains IDEs (GoLand, PyCharm, IntelliJ)
+.idea/
+*.iml
+*.iws
+
+# Vim
+*.swp
+*.swo
+*~
+
+# Emacs
+*~
+\#*\#
+.\#*
+
+# ====================
+# OS Files
+# ====================
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# Linux
+*~
+
+# ====================
+# Security & Credentials
+# ====================
+# SSH keys
+*.pem
+*.ppk
+id_rsa
+id_rsa.pub
+*.key
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+*.env
+
+# AWS credentials
+.aws/
+
+# Configuration files with secrets
+config.local.*
+secrets.yaml
+secrets.json
+
+# ====================
+# Testing & Coverage
+# ====================
+# Test results
+*.log
+*.out
+test-results/
+coverage/
+htmlcov/
+.coverage
+.coverage.*
+*.cover
+.pytest_cache/
+nosetests.xml
+coverage.xml
+
+# ====================
+# Documentation & Reports
+# ====================
+# Build artifacts
+docs/_build/
+site/
+
+# Generated reports
+*.html
+*.xml
+reports/
+
+# ====================
+# Temporary & Misc
+# ====================
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.bak
+*.backup
+
+# Archives
+*.zip
+*.tar.gz
+*.rar
+
+# Logs
+logs/
+*.log
