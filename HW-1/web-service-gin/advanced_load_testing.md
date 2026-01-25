@@ -48,7 +48,7 @@ Starting session-based load test with connection pooling...
 
 **Statistics:**
 - **Total requests**: 322
-- **Requests/second**: 1,625.76
+- **Requests/second**: 10.73
 - **Average response**: 93.25ms
 - **Median response**: 89.45ms
 - **Min response**: 80.00ms
@@ -67,7 +67,7 @@ Starting threaded load test with 10 workers...
 
 **Statistics:**
 - **Total requests**: 1,320
-- **Requests/second**: 4,441.13
+- **Requests/second**: 44.00
 - **Average response**: 216.23ms
 - **Median response**: 210.69ms
 - **Min response**: 173.59ms
@@ -86,7 +86,7 @@ Starting async load test with 10 concurrent requests...
 
 **Statistics:**
 - **Total requests**: 2,920
-- **Requests/second**: 14,468.16
+- **Requests/second**: 97.33
 - **Average response**: 99.26ms
 - **Median response**: 94.08ms
 - **Min response**: 77.70ms
@@ -101,9 +101,9 @@ Starting async load test with 10 concurrent requests...
 
 | Method | Requests | Requests/sec | Avg Response |
 |--------|----------|--------------|--------------|
-| Session | 322 | 1,625 | 93.25ms |
-| Threaded | 1,320 | 4,441 | 216.23ms |
-| **Async** | **2,920** | **14,468** | **99.26ms** |
+| Session | 322 | 10.73 | 93.25ms |
+| Threaded | 1,320 | 44.00 | 216.23ms |
+| **Async** | **2,920** | **97.33** | **99.26ms** |
 
 ### Key Insight
 **Async approach handled 9.1x more requests than Session and achieved the best throughput!**

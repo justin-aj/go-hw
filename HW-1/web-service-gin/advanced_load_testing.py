@@ -116,7 +116,7 @@ def session_load_test(url, duration_seconds=30):
 # ============================================
 # Utility Functions
 # ============================================
-def print_statistics(response_times, test_name="Test"):
+def print_statistics(response_times, test_name="Test", duration_seconds=30):
     """Print comprehensive statistics"""
     if not response_times:
         print("No successful requests!")
@@ -126,7 +126,7 @@ def print_statistics(response_times, test_name="Test"):
     print(f"{test_name} Statistics:")
     print(f"{'='*50}")
     print(f"Total requests:       {len(response_times)}")
-    print(f"Requests/second:      {len(response_times) / (max(response_times) / 1000):.2f}")
+    print(f"Requests/second:      {len(response_times) / duration_seconds:.2f}")
     print(f"Average response:     {np.mean(response_times):.2f}ms")
     print(f"Median response:      {np.median(response_times):.2f}ms")
     print(f"Min response:         {min(response_times):.2f}ms")
@@ -299,17 +299,17 @@ if __name__ == "__main__":
     # Test 1: Session with connection pooling
     print("\n1. Testing with Session (Connection Pooling)...")
     session_times = session_load_test(EC2_URL, TEST_DURATION)
-    print_statistics(session_times, "Session Test")
+    print_statistics(session_times, "Session Test", TEST_DURATION)
     
     # Test 2: Threaded approach
     print("\n2. Testing with Thread Pool (10 workers)...")
     threaded_times = threaded_load_test(EC2_URL, TEST_DURATION, workers=10)
-    print_statistics(threaded_times, "Threaded Test")
+    print_statistics(threaded_times, "Threaded Test", TEST_DURATION)
     
     # Test 3: Async approach (most efficient)
     print("\n3. Testing with Async/Await (10 concurrent)...")
     async_times = asyncio.run(async_load_test(EC2_URL, TEST_DURATION, concurrent_requests=10))
-    print_statistics(async_times, "Async Test")
+    print_statistics(async_times, "Async Test", TEST_DURATION)
     
     # Comparison
     print(f"\n{'='*50}")
