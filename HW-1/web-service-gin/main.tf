@@ -14,10 +14,10 @@ provider "aws" {
   region = "us-east-1"
 }
 
-# EC2 Instance with User Data to install Git and Docker
-resource "aws_instance" "demo-instance" {
+# EC2 Instance 1
+resource "aws_instance" "demo-instance-1" {
   ami                    = data.aws_ami.al2023.id
-  instance_type          = "t2.micro"
+  instance_type          = "t3.small"
   iam_instance_profile   = "LabInstanceProfile"
   vpc_security_group_ids = [aws_security_group.web.id]
   key_name               = var.ssh_key_name
@@ -38,7 +38,35 @@ resource "aws_instance" "demo-instance" {
               EOF
 
   tags = {
-    Name = "go-docker-instance"
+    Name = "go-docker-instance-1"
+  }
+}
+
+# EC2 Instance 2
+resource "aws_instance" "demo-instance-2" {
+  ami                    = data.aws_ami.al2023.id
+  instance_type          = "t3.small"
+  iam_instance_profile   = "LabInstanceProfile"
+  vpc_security_group_ids = [aws_security_group.web.id]
+  key_name               = var.ssh_key_name
+
+  user_data = <<-EOF
+              #!/bin/bash
+              yum update -y
+              yum install -y git docker
+              systemctl start docker
+              systemctl enable docker
+              usermod -aG docker ec2-user
+              
+              # Clone and Run App
+              git clone https://github.com/justin-aj/go-hw.git /home/ec2-user/app
+              cd /home/ec2-user/app/HW-1/web-service-gin
+              docker build -t web-service-gin .
+              docker run -d -p 8080:8080 web-service-gin
+              EOF
+
+  tags = {
+    Name = "go-docker-instance-2"
   }
 }
 
@@ -84,10 +112,18 @@ data "aws_ami" "al2023" {
 }
 
 # Outputs
-output "ec2_public_dns" {
-  value = aws_instance.demo-instance.public_dns
+output "instance_1_public_ip" {
+  value = aws_instance.demo-instance-1.public_ip
 }
 
-output "ec2_public_ip" {
-  value = aws_instance.demo-instance.public_ip
+output "instance_1_public_dns" {
+  value = aws_instance.demo-instance-1.public_dns
+}
+
+output "instance_2_public_ip" {
+  value = aws_instance.demo-instance-2.public_ip
+}
+
+output "instance_2_public_dns" {
+  value = aws_instance.demo-instance-2.public_dns
 }
