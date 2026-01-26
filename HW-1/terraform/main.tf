@@ -31,8 +31,8 @@ resource "aws_instance" "demo-instance" {
               usermod -aG docker ec2-user
               
               # Clone and Run App
-              git clone https://github.khoury.northeastern.edu/ajinfrankj/CS6650-HW.git /home/ec2-user/app
-              cd /home/ec2-user/app/web-service-gin
+              git clone https://github.com/justin-aj/go-hw1.git /home/ec2-user/app
+              cd /home/ec2-user/app/HW-1/web-service-gin
               docker build -t web-service-gin .
               docker run -d -p 8080:8080 web-service-gin
               EOF
@@ -62,7 +62,7 @@ resource "aws_security_group" "web" {
     from_port   = 8080
     to_port     = 8080
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]  # Allow from anywhere
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
   egress {
