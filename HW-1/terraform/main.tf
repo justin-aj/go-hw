@@ -31,7 +31,7 @@ resource "aws_instance" "demo-instance" {
               usermod -aG docker ec2-user
               
               # Clone and Run App
-              git clone https://github.com/justin-aj/go-hw1.git /home/ec2-user/app
+              git clone https://github.com/justin-aj/go-hw.git /home/ec2-user/app
               cd /home/ec2-user/app/HW-1/web-service-gin
               docker build -t web-service-gin .
               docker run -d -p 8080:8080 web-service-gin
