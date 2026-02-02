@@ -1,12 +1,12 @@
-from locust import HttpUser, task, between
+from locust import FastHttpUser, task, between
 import json
 import random
 
 
-class AlbumUser(HttpUser):
+class AlbumUser(FastHttpUser):
     """
     A user class that simulates interactions with the album API.
-    Uses green threads (gevent) for lightweight concurrency.
+    Uses FastHttpUser (C-based HTTP client) for 5-10x better performance!
     """
     
     # Target host (your Go server)
@@ -22,7 +22,7 @@ class AlbumUser(HttpUser):
         """
         self.album_counter = 0
     
-    @task(3)
+    @task(3)  # Weight of 3 - runs 3x more often than POST
     def get_albums(self):
         """
         GET request to retrieve all albums.
@@ -42,7 +42,7 @@ class AlbumUser(HttpUser):
             else:
                 response.failure(f"Got status code {response.status_code}")
     
-    @task(2)
+    @task(1)  # Weight of 1 - runs 1x (less frequently)
     def post_album(self):
         """
         POST request to create a new album.
@@ -60,7 +60,8 @@ class AlbumUser(HttpUser):
         with self.client.post(
             "/albums",
             name="POST /albums (create)",
-            json=new_album,
+            data=json.dumps(new_album),  # FastHttpUser needs explicit JSON encoding
+            headers={"Content-Type": "application/json"},
             catch_response=True
         ) as response:
             if response.status_code == 201:
@@ -76,7 +77,7 @@ class AlbumUser(HttpUser):
             else:
                 response.failure(f"Got status code {response.status_code}")
     
-    @task(3)
+    @task(2)  # Weight of 2 - runs 2x
     def get_album_by_id(self):
         """
         GET request to retrieve a specific album by ID.
@@ -99,10 +100,10 @@ class AlbumUser(HttpUser):
                 response.failure(f"Got status code {response.status_code}")
 
 
-class GetOnlyUser(HttpUser):
+class GetOnlyUser(FastHttpUser):
     """
     A user class that only performs GET requests.
-    Use this to test read-heavy scenarios.
+    Use this to test read-heavy scenarios with high performance.
     """
     host = "http://host.docker.internal:8080"
     wait_time = between(0.5, 2)
@@ -113,10 +114,10 @@ class GetOnlyUser(HttpUser):
         self.client.get("/albums", name="GET /albums (read-only test)")
 
 
-class PostOnlyUser(HttpUser):
+class PostOnlyUser(FastHttpUser):
     """
     A user class that only performs POST requests.
-    Use this to test write-heavy scenarios.
+    Use this to test write-heavy scenarios with high performance.
     """
     host = "http://host.docker.internal:8080"
     wait_time = between(0.5, 2)
@@ -134,4 +135,9 @@ class PostOnlyUser(HttpUser):
             "artist": "Load Test Artist",
             "price": 29.99
         }
-        self.client.post("/albums", name="POST /albums (write-only test)", json=new_album)
+        self.client.post(
+            "/albums",
+            name="POST /albums (write-only test)",
+            data=json.dumps(new_album),
+            headers={"Content-Type": "application/json"}
+        )
