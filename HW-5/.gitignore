@@ -19,3 +19,26 @@ terraform/crash.*.log
 # Local environment files
 .env
 .env.*
+
+# Python/Locust
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.coverage
+.vscode/
+.idea/
+.DS_Store
+*.swp
+*.swo
+locust.log
+locustfile.stats
+
+# Python virtual environments
+venv/
+
+# Docker build output
+*.tar
+*.img
+*.bak
