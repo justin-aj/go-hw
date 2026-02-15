@@ -27,3 +27,9 @@ terraform.rc
 # SSH private keys
 *.pem
 *.key
+
+
+**.tfvars
+**.tfstate
+**.tfstate.*
+**/.terraform/

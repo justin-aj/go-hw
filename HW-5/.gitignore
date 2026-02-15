@@ -1,0 +1,21 @@
+# Terraform working directory and cache
+terraform/.terraform/
+
+# Terraform state files
+terraform/*.tfstate
+terraform/*.tfstate.*
+
+# Terraform variable values (often contain secrets)
+terraform/*.tfvars
+terraform/*.tfvars.json
+
+# Terraform plan output
+terraform/*.tfplan
+
+# Crash logs
+terraform/crash.log
+terraform/crash.*.log
+
+# Local environment files
+.env
+.env.*
