@@ -1,0 +1,52 @@
+# ── Go ──────────────────────────────────────────
+# Compiled binary
+product-search
+*.exe
+
+# Test cache & coverage
+*.test
+*.out
+coverage.html
+
+# Go workspace
+go.work
+go.work.sum
+
+# ── Terraform ────────────────────────────────────
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.backup
+*.tfplan
+*.tfvars          # keep part3.tfvars out of git — may contain sensitive values
+!example.tfvars   # optional: commit a safe example
+
+# Crash logs
+crash.log
+override.tf
+override.tf.json
+
+# ── Python / Locust ──────────────────────────────
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+locust-report/
+locust_*.csv
+locust_*.html
+
+# ── Docker ──────────────────────────────────────
+# Local image build artifacts (Terraform manages the push)
+# nothing to ignore here — Dockerfile itself should be committed
+
+# ── AWS credentials (never commit these) ────────
+.aws/
+credentials
+aws_credentials.txt
+
+# ── Editor / OS ─────────────────────────────────
+.vscode/
+.idea/
+*.DS_Store
+Thumbs.db
