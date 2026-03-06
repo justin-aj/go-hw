@@ -39,7 +39,7 @@ type Result struct {
 // It checks exactly MaxCheck products and returns up to MaxResults matches.
 func Execute(s *store.ProductStore, query string) Result {
 	start := time.Now()
-	queryLower := strings.ToLower(query)
+	queryLower := strings.ToLower(query) // beauty
 
 	var matches []model.Product
 	totalFound := 0
@@ -48,8 +48,8 @@ func Execute(s *store.ProductStore, query string) Result {
 	// The callback receives every product; we count ALL visited, not
 	// just matches (this is the "fixed computation" the assignment requires).
 	checked := s.Iterate(1, MaxCheck, func(p model.Product) bool {
-		nameLower := strings.ToLower(p.Name)
-		catLower := strings.ToLower(p.Category)
+		nameLower := strings.ToLower(p.Name) // product name
+		catLower := strings.ToLower(p.Category) // product category
 
 		if strings.Contains(nameLower, queryLower) || strings.Contains(catLower, queryLower) {
 			totalFound++

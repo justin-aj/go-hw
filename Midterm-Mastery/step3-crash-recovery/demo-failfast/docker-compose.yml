@@ -1,0 +1,15 @@
+version: "3.8"
+services:
+  broken:
+    build: .
+    ports: ["8080:8080"]
+    environment:
+      RESILIENCE_MODE: broken
+    profiles: [broken]
+
+  resilient:
+    build: .
+    ports: ["8080:8080"]
+    environment:
+      RESILIENCE_MODE: resilient
+    profiles: [resilient]
