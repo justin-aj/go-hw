@@ -16,4 +16,4 @@ __pycache__/
 *.tfstate.backup
 
 # Claude settings
-.claude/settings.local.json
+.claude/
