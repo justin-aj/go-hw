@@ -316,3 +316,44 @@ REPORT RequestId: 9e4dd097-94d6-4c08-a9c1-9cca2b6326fb Duration: 3003.67 ms Bill
 | Max execution time | Unlimited | 15 minutes |
 | Backpressure control | Via SQS visibility timeout | Limited — SNS pushes immediately |
 | Best for | Sustained high throughput | Spiky / unpredictable workloads |
+
+### Warm Start Observation
+
+After the initial 5 concurrent invocations, a 6th order was sent immediately after. Lambda reused one of the 5 existing warm execution environments — the REPORT line for the warm invocation has no `Init Duration`:
+
+```
+REPORT RequestId: abc Duration: 3001.23 ms Billed Duration: 3002 ms Memory Size: 512 MB Max Memory Used: 20 MB
+```
+
+Cold starts occur on the **first invocation** of each new execution environment. Subsequent invocations within ~5–15 minutes reuse the warm environment and pay no init penalty. After ~15 minutes of idle, AWS recycles the environment and the next request pays the cold start again.
+
+| | Cold Start | Warm Start |
+|---|---|---|
+| `Init Duration` present | ✅ Yes (74.06 ms) | ❌ No |
+| Billed duration | 3,078 ms | ~3,001 ms |
+| Overhead | 2.4% | 0% |
+
+### Cost Reality Check
+
+**Current Part II cost (ECS):**
+- 2 ECS tasks × $8.50/month = **$17/month** (always running, even at 3am with zero traffic)
+
+**Lambda cost for same workload:**
+
+| Volume | Requests cost | Compute cost | Total |
+|---|---|---|---|
+| 10,000 orders/month | Under 1M free tier → **$0** | 10K × 3s × 0.5GB = 15K GB-s (under 400K free tier) → **$0** | **$0** |
+| 267,000 orders/month | Still under free tier → **$0** | 267K × 3s × 0.5GB = 400K GB-s (exactly free tier) → **$0** | **$0** |
+| 1,700,000 orders/month | $0.20/M × 1.7M = **$0.34** | ~2.55M GB-s × $0.0000166667 = **$42.50** | **~$43** |
+
+**Break-even:** Lambda stays free until ~267K orders/month. ECS costs $17/month regardless of volume.
+
+### Should Your Startup Switch to Lambda?
+
+**Yes — for an early-stage startup under 267K orders/month, Lambda is the clear choice.** The cost advantage is overwhelming ($0 vs $17/month), and the operational burden of ECS disappears entirely — no SQS depth alarms at 3am, no manual worker scaling, no health check tuning.
+
+The trade-offs are real but manageable at this scale: SNS delivers each message independently with only 2 retries (vs SQS's configurable retry + DLQ), and cold starts add 74ms to the first request after idle. For a 3-second payment handler, 74ms is 2.4% overhead — essentially invisible to the customer.
+
+The calculus changes at sustained high volume (>1.7M orders/month, ~650/s average). At that point, ECS with 200 workers processes orders at steady-state with zero cold starts and predictable latency — Lambda's per-invocation billing would exceed $17/month and the concurrent scaling limit (1,000 default) could become a constraint during extreme flash sales.
+
+**Recommendation:** Start with Lambda, set a CloudWatch alarm at $10/month spend, and migrate to ECS when the alarm fires.
