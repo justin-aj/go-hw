@@ -17,3 +17,9 @@ __pycache__/
 
 # Claude settings
 .claude/
+
+# Node
+node_modules/
+package-lock.json
+package.json
+generate-report.mjs
