@@ -13,5 +13,5 @@ variable "service_name" {
 variable "num_workers" {
   description = "Number of concurrent worker goroutines in the Order Processor"
   type        = number
-  default     = 1
+  default     = 100
 }

@@ -177,6 +177,77 @@ Queue buildup occurs when the **processing rate < arrival rate**. With 1 worker 
 2. **Auto-scaling** — watch `ApproximateNumberOfMessagesVisible` in CloudWatch and scale ECS tasks when it climbs
 3. **Lambda** (Part III) — AWS auto-scales concurrency automatically, no manual tuning
 
+---
+
+## Phase 4: The Queue Problem
+
+### CloudWatch — ApproximateNumberOfMessagesVisible
+
+![Phase 4 - Queue spike with 1 worker](screenshots/phase4-queue-spike-14k.png)
+
+After the async flash sale test (20 users, ~25s), CloudWatch showed:
+
+- Queue depth was **0** from 00:30–01:10 (idle)
+- At 01:10 the Locust test hit — queue climbed steeply to **~14,210 messages** by 01:25
+- Still climbing — 1 worker cannot keep up
+
+### The Math
+
+| Variable | Value |
+|---|---|
+| Order acceptance rate | ~242 req/s |
+| Single worker processing rate | 0.33 orders/s |
+| Queue growth rate | 242 - 0.33 ≈ **242 messages/s** |
+| Messages accumulated (~25s test) | ~6,100 |
+| Time to drain with 1 worker | 6,100 ÷ 0.33 = **~5.1 hours** |
+
+The queue depth spike is the async system's new problem: customers got fast 202 responses, but their orders are sitting in a multi-hour backlog. This is what Phase 5 addresses.
+
+---
+
+## Phase 5: Scale Your Workers
+
+### Worker Scaling Results
+
+**5 workers — queue still flat at 14.21K:**
+
+![Phase 5 - 5 workers, queue flat](screenshots/phase5-5workers-16k.png)
+
+**20 workers — queue growing to 16.9K, no visible drain:**
+
+![Phase 5 - 20 workers, queue barely draining](screenshots/phase5-20workers-16k.png)
+
+**100 workers — another Locust test adding to 23.27K:**
+
+![Phase 5 - 100 workers test running](screenshots/phase5-100workers-23k.png)
+
+**100 workers draining — queue drops from 27.17K → 13.58K in 5 minutes:**
+
+![Phase 5 - 100 workers, steep drain slope visible](screenshots/phase5-100workers-drain.png)
+
+| Workers | Processing Rate | Time to drain ~17K backlog | CloudWatch observation |
+|---|---|---|---|
+| 1 | 0.33/s | ~14.3 hours | Queue flat at 14.21K — no visible drain |
+| 5 | 1.67/s | ~2.8 hours | Queue still flat at 16.9K — drain too slow to see |
+| 20 | 6.67/s | ~42 min | Queue flat at 17.97K — marginal improvement |
+| 100 | 33.3/s | **~12 min** | Queue peaked at 27.17K → dropped to 13.58K in 5 min (~45/s observed) — first clearly visible drain slope |
+
+### Key Findings
+
+**HTTP performance was identical across all worker counts** — median ~65–82ms, ~230–250 RPS, 0 failures regardless of workers. The bottleneck is SQS processing, not HTTP acceptance.
+
+**Minimum workers to match flash sale demand (60 orders/s):**
+```
+Workers needed = demand × processing_time
+               = 60 orders/s × 3s/order
+               = 180 goroutines
+```
+100 workers gets us to 33.3/s drain (56% of demand). 200 workers would slightly exceed 60/s and allow the queue to drain during a sustained flash sale.
+
+**100 workers was the first configuration where the queue visibly drained** — the steep downward slope appeared within minutes of the test stopping, vs hours with fewer workers.
+
+---
+
 ### When would you choose sync vs async in production?
 
 **Choose sync when:**
@@ -188,3 +259,60 @@ Queue buildup occurs when the **processing rate < arrival rate**. With 1 worker 
 - Processing takes seconds (payment verification, image resizing, email sending)
 - You want to decouple acceptance rate from processing rate
 - You need resilience — SQS holds messages if the processor crashes
+
+---
+
+## Part III: Lambda as the Processor
+
+### Architecture
+
+```
+POST /orders/async → SNS topic
+                         ├── SQS subscription → ECS order-processor (pull-based)
+                         └── Lambda subscription → order-processor Lambda (push-based)
+```
+
+Both subscribers receive every SNS message. Lambda is invoked directly per message — no polling, no worker pool, no manual scaling.
+
+### Cold Start Observation
+
+After sending 5 concurrent orders, CloudWatch Logs for `/aws/lambda/order-processor` showed:
+
+```
+INIT_START Runtime Version: provided:al2.v143
+START RequestId: 9e4dd097-94d6-4c08-a9c1-9cca2b6326fb Version: $LATEST
+2026/03/15 06:31:08 Lambda processing order 4f84a444-2ada-4c7f-b697-7b7e4146e621 (customer 1)
+2026/03/15 06:31:11 Lambda completed order 4f84a444-2ada-4c7f-b697-7b7e4146e621
+END RequestId: 9e4dd097-94d6-4c08-a9c1-9cca2b6326fb
+REPORT RequestId: 9e4dd097-94d6-4c08-a9c1-9cca2b6326fb Duration: 3003.67 ms Billed Duration: 3078 ms Memory Size: 512 MB Max Memory Used: 20 MB Init Duration: 74.06 ms
+```
+
+| Metric | Value |
+|---|---|
+| Cold start (`Init Duration`) | **74.06 ms** |
+| Handler execution (`Duration`) | **3,003.67 ms** |
+| Billed duration | **3,078 ms** (init + execution) |
+| Memory allocated | 512 MB |
+| Max memory used | **20 MB** |
+| Runtime | `provided:al2` (Go custom runtime) |
+
+### Key Observations
+
+**Cold start is only 74ms** — Go compiles to a static binary (`bootstrap`) with no JVM or interpreter startup. Compare this to Java Lambda cold starts of 1–2 seconds or Python at 200–500ms.
+
+**Lambda scales to zero and back instantly** — no ECS task to keep warm, no minimum worker count. If no orders come in for 15 minutes, AWS recycles the execution environment. The next invocation pays the 74ms cold start again.
+
+**One invocation per SNS message** — unlike ECS which polls SQS batches, Lambda receives exactly 1 SNS notification per invocation. At 20 concurrent orders, AWS spins up 20 Lambda instances simultaneously. This is the auto-scaling we had to manually configure with `NUM_WORKERS` in ECS.
+
+**Billed = Init + Duration** — the 74ms cold start is billed alongside the execution. For a 3s handler this is negligible (2.4% overhead). For a 50ms handler, cold start would dominate.
+
+### ECS vs Lambda Trade-offs
+
+| | ECS (pull from SQS) | Lambda (push from SNS) |
+|---|---|---|
+| Scaling | Manual (`NUM_WORKERS`) | Automatic (up to 1,000 concurrent) |
+| Cold start | None (always-on) | 74ms (Go), 1-2s (Java) |
+| Cost model | Pay per hour (running task) | Pay per invocation (ms granularity) |
+| Max execution time | Unlimited | 15 minutes |
+| Backpressure control | Via SQS visibility timeout | Limited — SNS pushes immediately |
+| Best for | Sustained high throughput | Spiky / unpredictable workloads |

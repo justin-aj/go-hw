@@ -5,7 +5,9 @@
       "name": "order-receiver",
       "runtimeExecutable": "go",
       "runtimeArgs": ["run", "."],
-      "port": 8080
+      "cwd": "order-receiver",
+      "port": 8080,
+      "autoPort": true
     },
     {
       "name": "locust-sync",
