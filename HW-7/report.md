@@ -99,15 +99,63 @@ This is why Phase 5 scales the processor goroutines — each goroutine can proce
 
 ## Phase 3: Async Solution
 
-> *To be filled after AWS deployment*
+### Architecture
 
-## Phase 4: Queue Problem
+```
+Customer → POST /orders/async → SNS publish → 202 Accepted  (<100ms)
+                                     ↓
+                              SQS queue
+                                     ↓
+                         Order Processor (ECS) → payment sleep 3s → DeleteMessage
+```
 
-> *To be filled after AWS deployment*
+### Deployment Issues & Fixes
 
-## Phase 5: Worker Scaling
+**Issue 1 — Docker provider 403 error:**
+Terraform's `kreuzwerker/docker` provider tried to pull a BuildKit cache from ECR during `terraform apply` and received a 403. Fix: removed the `docker_image` Terraform resources and built/pushed images manually with `docker build` + `docker push`.
 
-> *To be filled after AWS deployment*
+**Issue 2 — go.mod version mismatch:**
+`golang:1.22-alpine` in the Dockerfile couldn't satisfy `aws-sdk-go-v2 v1.41.4` which requires Go 1.24. Fixed by updating Dockerfiles to `golang:1.24-alpine` and running `go mod tidy`.
+
+**Issue 3 — TLS certificate failure in ECS (`x509: certificate signed by unknown authority`):**
+The `FROM scratch` base image has no CA certificate bundle. The Go AWS SDK uses HTTPS to reach SNS and SQS, so TLS verification failed inside both containers. Fix: switched final image from `scratch` to `alpine:3.19` with `apk add ca-certificates`. Both receiver and processor affected.
+
+### Verification
+
+After redeployment, a test order confirmed the full async flow end-to-end:
+
+```
+# Request (immediate response):
+POST /orders/async → 202 {"order_id":"00b93dad...","status":"pending","message":"order queued for processing"}
+
+# Processor log (~4 minutes later, after ECS stabilized):
+05:09:58 [worker 0] processing order 00b93dad-4b21-43e2-b6b5-3ac8b7394394
+05:10:01 [worker 0] order 00b93dad-4b21-43e2-b6b5-3ac8b7394394 completed
+```
+
+The API responded in milliseconds. The 3-second payment processing happened entirely in the background.
+
+### Results (Flash Sale — async, 20 users, 60s)
+
+| Metric | Value |
+|---|---|
+| Total Requests | 6,100 |
+| Failures | 0 (0%) |
+| Min Response Time | 34 ms |
+| Median (P50) | 81 ms |
+| P95 | 150 ms |
+| P99 | 200 ms |
+| Average | 82 ms |
+| Max | 268 ms |
+| Throughput | ~242 req/s |
+
+**Chart Observations:**
+- RPS climbed steeply from 0 to ~250 as users spawned (ramp phase), then held flat at ~240 req/s throughout — no ceiling in sight
+- Response times were flat and low the entire run: P50 ~80ms, P95 ~150ms — these are just ALB + network latency, not processing time
+- Number of users reached 20 and held steady — all 20 were firing continuously without any queueing
+- 0 failures throughout — the system accepted every single order immediately
+
+**Key insight:** The async endpoint's response time has nothing to do with the 3-second payment processing. It returns 202 in ~80ms (ALB overhead) while the actual processing happens in the background. Every user got a fast response regardless of load.
 
 ---
 
@@ -115,7 +163,12 @@ This is why Phase 5 scales the processor goroutines — each goroutine can proce
 
 ### How many times more orders did async accept vs sync?
 
-> *To be filled after Phase 3 results*
+**~600× more.**
+
+- Sync (flash sale, 60s): **19 orders** processed, throughput = 0.33 req/s
+- Async (flash sale, ~25s effective): **6,100 orders accepted**, throughput = ~242 req/s
+
+Even adjusting for run duration, async accepted roughly **730× more requests per second** (242 / 0.33). From a business perspective: sync made 19 customers wait up to 57 seconds; async accepted 6,100 orders immediately and queued them for background processing.
 
 ### What causes queue buildup and how do you prevent it?
 

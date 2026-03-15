@@ -5,6 +5,7 @@ RUN go mod download
 COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -o processor .
 
-FROM scratch
+FROM alpine:3.19
+RUN apk --no-cache add ca-certificates
 COPY --from=builder /app/processor /processor
 ENTRYPOINT ["/processor"]
