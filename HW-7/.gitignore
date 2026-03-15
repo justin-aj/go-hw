@@ -1,0 +1,19 @@
+# Compiled binaries
+*.exe
+*.zip
+bootstrap
+
+# Go build cache
+vendor/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Terraform state & plugins
+.terraform/
+*.tfstate
+*.tfstate.backup
+
+# Claude settings
+.claude/settings.local.json

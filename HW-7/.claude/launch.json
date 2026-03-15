@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "order-receiver",
+      "runtimeExecutable": "go",
+      "runtimeArgs": ["run", "."],
+      "port": 8080
+    },
+    {
+      "name": "locust",
+      "runtimeExecutable": "locust",
+      "runtimeArgs": ["-f", "locust/locustfile.py", "--host", "http://localhost:8080", "--tags", "sync"],
+      "port": 8089
+    }
+  ]
+}
