@@ -14,7 +14,7 @@ import statistics
 
 FILES = {
     "mysql":  "mysql_test_results.json",
-    "dynamo": "dynamodb_test_results.json",
+    "dynamo": "dynamo_test_results.json",
 }
 
 combined = []

@@ -5,6 +5,7 @@ package handler
 import (
 	"encoding/json"
 	"errors"
+	"log"
 	"net/http"
 	"strconv"
 
@@ -42,6 +43,7 @@ func (h *Handler) createCart(w http.ResponseWriter, r *http.Request) {
 	}
 	cartID, err := h.store.CreateCart(r.Context(), req.CustomerID)
 	if err != nil {
+		log.Printf("createCart error: %v", err)
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"message": "internal error"})
 		return
 	}

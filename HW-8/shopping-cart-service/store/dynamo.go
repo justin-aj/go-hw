@@ -18,7 +18,7 @@ import (
 // DynamoDB implements Store using Amazon DynamoDB.
 //
 // Single-table design:
-//   PK  cartId (N)     — random int assigned at creation time
+//   PK  cartId (S)     — random int stored as string
 //   customerId (N)
 //   status     (S)     — "active" | "checked_out"
 //   items      (L)     — list of {productId (N), quantity (N)} maps
@@ -46,7 +46,7 @@ func (d *DynamoDB) CreateCart(ctx context.Context, customerID int) (int, error) 
 	_, err := d.client.PutItem(ctx, &dynamodb.PutItemInput{
 		TableName: aws.String(d.tableName),
 		Item: map[string]types.AttributeValue{
-			"cartId":     &types.AttributeValueMemberN{Value: fmt.Sprintf("%d", cartID)},
+			"cartId":     &types.AttributeValueMemberS{Value: fmt.Sprintf("%d", cartID)},
 			"customerId": &types.AttributeValueMemberN{Value: fmt.Sprintf("%d", customerID)},
 			"status":     &types.AttributeValueMemberS{Value: "active"},
 		},
@@ -61,7 +61,7 @@ func (d *DynamoDB) GetCart(ctx context.Context, cartID int) (*model.Cart, []mode
 	out, err := d.client.GetItem(ctx, &dynamodb.GetItemInput{
 		TableName: aws.String(d.tableName),
 		Key: map[string]types.AttributeValue{
-			"cartId": &types.AttributeValueMemberN{Value: fmt.Sprintf("%d", cartID)},
+			"cartId": &types.AttributeValueMemberS{Value: fmt.Sprintf("%d", cartID)},
 		},
 	})
 	if err != nil {
@@ -103,7 +103,7 @@ func (d *DynamoDB) AddItem(ctx context.Context, cartID, productID, quantity int)
 	_, err := d.client.UpdateItem(ctx, &dynamodb.UpdateItemInput{
 		TableName: aws.String(d.tableName),
 		Key: map[string]types.AttributeValue{
-			"cartId": &types.AttributeValueMemberN{Value: fmt.Sprintf("%d", cartID)},
+			"cartId": &types.AttributeValueMemberS{Value: fmt.Sprintf("%d", cartID)},
 		},
 		ConditionExpression:      aws.String("attribute_exists(cartId)"),
 		UpdateExpression:         aws.String("SET #it = list_append(if_not_exists(#it, :empty), :item)"),
@@ -132,7 +132,7 @@ func (d *DynamoDB) Checkout(ctx context.Context, cartID int) (int, error) {
 	_, err := d.client.UpdateItem(ctx, &dynamodb.UpdateItemInput{
 		TableName: aws.String(d.tableName),
 		Key: map[string]types.AttributeValue{
-			"cartId": &types.AttributeValueMemberN{Value: fmt.Sprintf("%d", cartID)},
+			"cartId": &types.AttributeValueMemberS{Value: fmt.Sprintf("%d", cartID)},
 		},
 		ConditionExpression:      aws.String("attribute_exists(cartId) AND #s = :active"),
 		UpdateExpression:         aws.String("SET #s = :checked"),
