@@ -11,9 +11,45 @@
 # Switch backends by setting var.db_backend = "mysql" or "dynamo".
 
 # ── IAM ──────────────────────────────────────────────────────────────────────
+# Create an ECS task execution + task role since this is an AWS Sandbox
+# (no pre-existing LabRole).
 
-data "aws_iam_role" "lab_role" {
-  name = "LabRole"
+data "aws_iam_policy_document" "ecs_assume" {
+  statement {
+    actions = ["sts:AssumeRole"]
+    principals {
+      type        = "Service"
+      identifiers = ["ecs-tasks.amazonaws.com"]
+    }
+  }
+}
+
+resource "aws_iam_role" "ecs_role" {
+  name               = "${var.service_name}-ecs-role"
+  assume_role_policy = data.aws_iam_policy_document.ecs_assume.json
+}
+
+# Execution role: pull images from ECR, write logs to CloudWatch
+resource "aws_iam_role_policy_attachment" "ecs_execution" {
+  role       = aws_iam_role.ecs_role.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+}
+
+# Task role: allow the running container to call DynamoDB + RDS
+resource "aws_iam_role_policy" "ecs_task_policy" {
+  name = "${var.service_name}-task-policy"
+  role = aws_iam_role.ecs_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = ["dynamodb:PutItem", "dynamodb:GetItem", "dynamodb:UpdateItem"]
+        Resource = module.dynamodb.table_arn
+      }
+    ]
+  })
 }
 
 # ── Network ──────────────────────────────────────────────────────────────────
@@ -69,8 +105,8 @@ module "ecs_cart" {
   container_port     = 8080
   subnet_ids         = module.network.private_subnet_ids
   security_group_ids = [module.network.ecs_security_group_id]
-  execution_role_arn = data.aws_iam_role.lab_role.arn
-  task_role_arn      = data.aws_iam_role.lab_role.arn
+  execution_role_arn = aws_iam_role.ecs_role.arn
+  task_role_arn      = aws_iam_role.ecs_role.arn
   region             = var.aws_region
   target_group_arn   = module.alb.target_group_arn
   task_count         = 1
