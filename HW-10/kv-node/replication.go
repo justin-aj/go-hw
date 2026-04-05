@@ -9,16 +9,14 @@ import (
 	"time"
 )
 
-// replicateRequest is the body sent from leader to follower on POST /replicate.
 type replicateRequest struct {
 	Key     string `json:"key"`
 	Value   string `json:"value"`
 	Version int64  `json:"version"`
 }
 
-// Replicator handles fan-out writes and quorum reads on behalf of the leader.
 type Replicator struct {
-	followers []string // follower base URLs, e.g. "http://follower1:8080"
+	followers []string
 	client    *http.Client
 }
 
@@ -29,24 +27,20 @@ func NewReplicator(followers []string) *Replicator {
 	}
 }
 
-// FanOut sends key/value/version to all followers concurrently.
-//
-// waitsFor: how many follower ACKs to wait for before returning.
-//
-//	0  = fire-and-forget (goroutines keep running in the background)
-//	N  = block until N followers have responded
-//
-// Each goroutine sleeps 200ms before sending — this simulates the network/disk
-// latency described in the spec ("Leader should sleep 200ms following each
-// message to a Follower") and widens the inconsistency window for testing.
+// FanOut sends to all followers concurrently. waitsFor controls how many ACKs
+// to block on before returning (0 = fire-and-forget, N = wait for N).
 func (r *Replicator) FanOut(key, value string, version int64, waitsFor int) {
+	// 1. Spawn one goroutine per follower
 	ch := make(chan error, len(r.followers))
 	for _, url := range r.followers {
 		go func(followerURL string) {
+			// 2. Sleep 200ms (simulates leader→follower network latency per spec)
 			time.Sleep(200 * time.Millisecond)
+			// 3. Send the replicate request
 			ch <- r.sendReplicate(followerURL, key, value, version)
 		}(url)
 	}
+	// 4. Block until waitsFor ACKs received (the rest finish in the background)
 	for i := 0; i < waitsFor; i++ {
 		if err := <-ch; err != nil {
 			log.Printf("replicate error: %v", err)
@@ -64,14 +58,14 @@ func (r *Replicator) sendReplicate(followerURL, key, value string, version int64
 	return nil
 }
 
-// ReadBest fetches key from up to count followers concurrently and returns the
-// entry with the highest version number.
-// Returns (entry, true) if at least one follower had the key, (zero, false) otherwise.
+// ReadBest reads from count followers and returns the entry with the highest version.
 func (r *Replicator) ReadBest(key string, count int) (kvResponse, bool) {
+	// 1. Pick the first `count` followers to read from
 	targets := r.followers
 	if count < len(targets) {
 		targets = targets[:count]
 	}
+	// 2. Read from each concurrently
 	ch := make(chan kvResponse, len(targets))
 	for _, url := range targets {
 		go func(followerURL string) {
@@ -84,6 +78,7 @@ func (r *Replicator) ReadBest(key string, count int) (kvResponse, bool) {
 			ch <- entry
 		}(url)
 	}
+	// 3. Collect responses and return the highest version
 	best := kvResponse{Version: -1}
 	for range targets {
 		if e := <-ch; e.Version > best.Version {

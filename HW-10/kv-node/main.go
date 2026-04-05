@@ -1,32 +1,3 @@
-// kv-node — in-memory Key-Value store node
-//
-// Single binary that runs as a leader, follower, or standalone node.
-// Role and quorum settings are controlled entirely via environment variables,
-// so the same Docker image serves all roles in the cluster.
-//
-// Environment variables:
-//
-//	ROLE       "leader" | "follower" | "standalone" (default: standalone)
-//	PORT       HTTP listen port (default: 8080)
-//	W          Write quorum — how many nodes must confirm a write (default: 5)
-//	            Leader only. Leader itself always counts as 1.
-//	            W=5 → wait for all 4 followers before responding.
-//	            W=3 → wait for 2 followers (quorum).
-//	            W=1 → return immediately, replicate async.
-//	R          Read quorum — how many nodes to read from (default: 1)
-//	            Leader only.
-//	            R=1 → read from leader only.
-//	            R=3 → read from leader + 2 followers, return max version.
-//	            R=5 → read from all 5 nodes, return max version.
-//	FOLLOWERS  Comma-separated follower base URLs (required when ROLE=leader)
-//	            e.g. "http://follower1:8080,http://follower2:8080,..."
-//
-// Endpoints:
-//
-//	POST /set              {"key":"...","value":"..."} → 201
-//	GET  /get/{key}        → 200 {"key","value","version"} | 404
-//	POST /replicate        {"key","value","version"} → 201  (internal, leader→follower)
-//	GET  /local_read/{key} → 200 {"key","value","version"} | 404  (test hook, no delays)
 package main
 
 import (
@@ -38,13 +9,16 @@ import (
 )
 
 func main() {
+	// 1. Read config from environment variables
 	role := envOr("ROLE", "standalone")
 	port := envOr("PORT", "8080")
 	w := envInt("W", 5)
 	r := envInt("R", 1)
 
+	// 2. Create the in-memory store
 	store := NewKVStore()
 
+	// 3. Wire up the replicator (only for leader and leaderless)
 	var replicator *Replicator
 	switch role {
 	case "leader":
@@ -65,8 +39,10 @@ func main() {
 		log.Printf("leaderless mode: peers=%v", peers)
 	}
 
+	// 4. Create the handler (store + role + quorums + replicator)
 	h := NewHandler(store, role, w, r, replicator)
 
+	// 5. Register routes and start the server
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /set", h.Set)
 	mux.HandleFunc("GET /get/{key}", h.Get)
