@@ -1,0 +1,54 @@
+# Leader-Follower cluster: 1 leader + 4 followers (N=5)
+#
+# Switch modes by setting W and R before starting:
+#
+#   W=5 R=1  docker compose up   # sync writes, leader-only reads
+#   W=1 R=5  docker compose up   # async writes, read from all nodes
+#   W=3 R=3  docker compose up   # quorum (default if unset: W=5 R=1)
+#
+# After starting, send all writes to the leader on :8080.
+# Reads can go to any node (:8080-:8084).
+
+services:
+  leader:
+    build: .
+    environment:
+      ROLE: leader
+      W: ${W:-5}
+      R: ${R:-1}
+      FOLLOWERS: http://follower1:8080,http://follower2:8080,http://follower3:8080,http://follower4:8080
+    ports:
+      - "9080:8080"
+    depends_on:
+      - follower1
+      - follower2
+      - follower3
+      - follower4
+
+  follower1:
+    build: .
+    environment:
+      ROLE: follower
+    ports:
+      - "9081:8080"
+
+  follower2:
+    build: .
+    environment:
+      ROLE: follower
+    ports:
+      - "9082:8080"
+
+  follower3:
+    build: .
+    environment:
+      ROLE: follower
+    ports:
+      - "9083:8080"
+
+  follower4:
+    build: .
+    environment:
+      ROLE: follower
+    ports:
+      - "9084:8080"

@@ -1,0 +1,49 @@
+# Leaderless cluster: 5 equal nodes (N=5), W=N, R=1
+#
+# Any node can receive a write — it becomes the Write Coordinator for that request.
+# The coordinator fans out to all 4 peers and waits for all to confirm (W=5).
+# Reads return the local value of whichever node is hit (R=1).
+#
+# Send writes and reads to any node on ports 9085-9089.
+# The inconsistency window is ~300ms after a write while peers are updating.
+
+services:
+  node1:
+    build: .
+    environment:
+      ROLE: leaderless
+      PEERS: http://node2:8080,http://node3:8080,http://node4:8080,http://node5:8080
+    ports:
+      - "9085:8080"
+
+  node2:
+    build: .
+    environment:
+      ROLE: leaderless
+      PEERS: http://node1:8080,http://node3:8080,http://node4:8080,http://node5:8080
+    ports:
+      - "9086:8080"
+
+  node3:
+    build: .
+    environment:
+      ROLE: leaderless
+      PEERS: http://node1:8080,http://node2:8080,http://node4:8080,http://node5:8080
+    ports:
+      - "9087:8080"
+
+  node4:
+    build: .
+    environment:
+      ROLE: leaderless
+      PEERS: http://node1:8080,http://node2:8080,http://node3:8080,http://node5:8080
+    ports:
+      - "9088:8080"
+
+  node5:
+    build: .
+    environment:
+      ROLE: leaderless
+      PEERS: http://node1:8080,http://node2:8080,http://node3:8080,http://node4:8080
+    ports:
+      - "9089:8080"
